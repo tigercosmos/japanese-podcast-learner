@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "podcast-learner"
+version = "0.0.0"
+description = "Backend for the Japanese podcast learner web app"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+]
+
+[project.optional-dependencies]
+dev = [
+    "flake8>=7",
+    "httpx>=0.27",
+    "pytest>=8",
+]
+
+[tool.setuptools.packages.find]
+include = ["podcast_learner*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# vim: set ff=unix fenc=utf8 et sw=4 ts=4 sts=4 tw=79:

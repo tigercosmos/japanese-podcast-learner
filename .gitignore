@@ -1,0 +1,44 @@
+# OS / editors
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.sw?
+
+# Agent tooling (per-user files)
+CLAUDE.local.md
+.claude/worktrees/
+/worktrees/
+
+# Environment
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Frontend
+node_modules
+dist
+dist-ssr
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/blob-report/
+/frontend/.playwright/
+**/.last-run.json
+
+# Backend
+__pycache__/
+*.py[co]
+*.egg-info/
+build/
+.pytest_cache/
+.venv/
+
+# Local runtime data (downloaded audio, transcripts, databases)
+/data/
