@@ -1,14 +1,38 @@
 # Japanese Podcast Learner (日語 Podcast 學習)
 
 A web app for learning Japanese from podcasts, built for Traditional Chinese
-speakers. It has a Python backend and a React frontend.
+speakers. It has a Python backend and a React frontend. The UI and every
+explanation are in Taiwanese Traditional Chinese.
 
-> **Status:** Scaffold only. The repository layout, tooling, and configuration
-> are in place. No features are implemented yet. See `plan.md` for the design.
+## What It Does
+
+Paste the link of a Japanese YouTube video. The backend then:
+
+1. Gets the Japanese transcript. It uses the uploaded Japanese subtitles when
+   the video has them. Otherwise it downloads the audio and transcribes it on
+   your Mac with Whisper (MLX).
+2. Translates every line to Traditional Chinese with Claude Code
+   (`claude -p`).
+3. Lists the vocabulary (reading, meaning, usage, example) and the grammar
+   patterns (explanation, how to connect, examples), also with Claude Code.
+
+You can then learn in two ways:
+
+- **先學習 (study first):** browse the vocabulary and grammar lists, filter by
+  JLPT level, search, and read the transcript. Each entry links to the
+  sentences in the video that use it.
+- **邊看邊學 (learn while watching):** the video plays with Japanese and
+  Chinese subtitles drawn over it. Click a word or a grammar tag in the
+  subtitle and the video pauses and shows the explanation.
+
+See `plan.md` for the design.
 
 ## Tech Stack
 
 - **Backend:** Python 3.12+, FastAPI, uvicorn, pytest, flake8
+- **Transcript:** yt-dlp (subtitles and audio), mlx-whisper (speech-to-text)
+- **Japanese analysis:** SudachiPy (tokens and furigana), Claude Code
+  (translation, vocabulary, grammar)
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, React Router v7
 - **Frontend tests:** Vitest (unit), Playwright (end-to-end)
 
@@ -19,6 +43,10 @@ speakers. It has a Python backend and a React frontend.
 - Python 3.12 or later
 - Node.js 22 or later, with npm
 - GNU Make
+- [Claude Code](https://claude.com/claude-code), logged in, with `claude` on
+  your `PATH`
+- For videos without Japanese subtitles: a Mac with Apple Silicon, and
+  `ffmpeg` (`brew install ffmpeg`)
 
 ### Installation
 
@@ -30,12 +58,28 @@ make install
 
 `make install` runs `pip install -e "backend[dev]"` for the backend and
 `npm install` in `frontend/`. Use `make pyinstall` or `make npminstall` to
-install only one half. Activate the Python environment you want before you run
-it.
+install only one half. The Makefile uses the Python in `.venv/` when that
+directory exists (`python3 -m venv .venv`). Otherwise it uses `python3`, so
+activate the environment you want first.
+
+To transcribe videos that have no Japanese subtitles, also install the local
+Whisper model runner:
+
+```bash
+make pyinstall PYEXTRAS=dev,whisper
+```
+
+The first transcription downloads the model (about 1.6 GB).
 
 ### Development
 
-Run the backend and the frontend in two terminals:
+Start both servers with one command (Ctrl-C stops both):
+
+```bash
+make run
+```
+
+Or run the backend and the frontend in two terminals:
 
 ```bash
 make serve   # Backend at http://127.0.0.1:8000 (auto-reload)
@@ -48,6 +92,29 @@ a backend at a different address, set `BACKEND_URL`:
 ```bash
 BACKEND_URL=http://127.0.0.1:9000 make dev
 ```
+
+Open the frontend, paste a YouTube link, and wait for the analysis. A video
+with subtitles takes a few minutes. Results are stored under `data/`, so each
+video is analyzed only once.
+
+### Configuration
+
+The backend reads these environment variables:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PODCAST_LEARNER_DATA` | `data/` | Where videos are stored |
+| `PODCAST_LEARNER_CLAUDE_BIN` | `claude` | Claude Code executable |
+| `PODCAST_LEARNER_CLAUDE_MODEL` | `opus` | Model for `claude -p` |
+| `PODCAST_LEARNER_CLAUDE_EFFORT` | `medium` | Reasoning effort for `claude -p` |
+| `PODCAST_LEARNER_CLAUDE_WORKERS` | `4` | Parallel `claude -p` calls |
+| `PODCAST_LEARNER_CLAUDE_TIMEOUT` | `900` | Seconds for one call |
+| `PODCAST_LEARNER_CLAUDE_KEEP_API_KEY` | unset | Set to `1` to pass `ANTHROPIC_API_KEY` to Claude Code |
+| `PODCAST_LEARNER_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | MLX Whisper model |
+
+By default the backend removes `ANTHROPIC_API_KEY` from the environment of
+`claude -p`, so Claude Code uses its own login (your subscription) and not
+API billing.
 
 ### Build
 
@@ -81,7 +148,7 @@ make lint    # flake8, trailing whitespace, ESLint, tsc
 ```
 backend/
   pyproject.toml        Package metadata and dependencies
-  podcast_learner/      Backend package
+  podcast_learner/      Backend package (API, pipeline, analysis)
   tests/                pytest suite
 frontend/
   src/                  React app

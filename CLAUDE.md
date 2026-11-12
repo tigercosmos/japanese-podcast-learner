@@ -15,8 +15,11 @@ speakers. It has two halves:
 - `frontend/` -- React 19 + TypeScript + Vite + Tailwind CSS v4 single-page
   app. The UI is in Traditional Chinese.
 
-The repository is a scaffold: the layout, tooling, and configuration are in
-place, but no features are implemented yet. `plan.md` holds the system design
+The user submits a YouTube link. The backend gets the Japanese transcript
+(uploaded subtitles, or local Whisper when there are none), then runs Claude
+Code (`claude -p`) to translate it and to explain its vocabulary and grammar.
+The frontend has a study mode (lists) and a watch mode (subtitles drawn over
+the embedded player, with clickable words). `plan.md` holds the system design
 and the open decisions.
 
 ## Build, Test, Lint
@@ -28,11 +31,14 @@ installation.
 **Install**
 
 - `make install` -- both halves (`make pyinstall` + `make npminstall`).
-- `make pyinstall` -- `pip install -e "backend[dev]"`.
+- `make pyinstall` -- `pip install -e "backend[dev]"`. Add the local Whisper
+  runner with `make pyinstall PYEXTRAS=dev,whisper`.
+- The Makefile uses `.venv/bin/python` when `.venv/` exists, else `python3`.
 - `make npminstall` -- `npm install` in `frontend/`.
 
 **Run**
 
+- `make run` -- backend and frontend together. Ctrl-C stops both.
 - `make serve` -- backend dev server at `http://127.0.0.1:8000` with reload.
   The ASGI app is `BACKEND_APP` (default `podcast_learner.app:app`).
 - `make dev` -- frontend dev server at `http://127.0.0.1:5173/`. Vite proxies
@@ -71,7 +77,18 @@ frontend/
   public/               Static assets
 ```
 
-- HTTP routes are mounted under `/api`.
+- HTTP routes are mounted under `/api` (`app.py`).
+- `pipeline.py` runs one video at a time on a background thread:
+  `youtube.py` (yt-dlp) -> `transcript.py` or `transcribe.py` (mlx-whisper)
+  -> `analysis.py` (chunks, one `claude.py` call per chunk) -> `store.py`
+  (JSON files under `data/`).
+- `japanese.py` (SudachiPy) decides which words get a vocabulary entry. The
+  dictionary form of a token is the id of its entry, which is how a word in
+  a subtitle links to its explanation.
+- The pipeline takes its YouTube source, transcriber, and Claude runner as
+  arguments. Tests pass fakes (`backend/tests/fakes.py`); they never call
+  the network, Whisper, or Claude.
+- Text shown to the user (errors, prompts, UI) is Traditional Chinese.
 - In development the two servers run separately (`make serve` and
   `make dev`); Vite proxies `/api` to `BACKEND_URL`
   (default `http://127.0.0.1:8000`).

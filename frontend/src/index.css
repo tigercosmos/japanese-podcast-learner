@@ -2,3 +2,37 @@
 
 /* Class-based dark mode: toggle .dark on <html> */
 @variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-paper: #f6f1e7;
+  --color-card: #fffdf8;
+  --color-ink: #23201b;
+  --color-muted: #776f62;
+  --color-line: #e3dacb;
+  --color-accent: #b93a26;
+  --color-accent-soft: #f7e2da;
+  --color-indigo: #2f4b7c;
+  --color-indigo-soft: #e1e8f4;
+
+  --font-sans: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei",
+    system-ui, sans-serif;
+  --font-ja: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", "Meiryo",
+    sans-serif;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Japanese text must use Japanese glyph shapes, not the Chinese ones. */
+:lang(ja) {
+  font-family: var(--font-ja);
+}
+
+rt {
+  font-size: 0.55em;
+  font-weight: 400;
+  user-select: none;
+}

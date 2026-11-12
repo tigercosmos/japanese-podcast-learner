@@ -5,7 +5,12 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 BACKEND := $(ROOT)/backend
 FRONTEND := $(ROOT)/frontend
 
-PYTHON ?= python3
+# Use the virtual environment in .venv/ when there is one.
+PYTHON ?= $(if $(wildcard $(ROOT)/.venv/bin/python),\
+	$(ROOT)/.venv/bin/python,python3)
+# Extras of the backend package to install. Add "whisper" on Apple Silicon
+# for local speech-to-text: make pyinstall PYEXTRAS=dev,whisper
+PYEXTRAS ?= dev
 FLAKE8 ?= $(PYTHON) -m flake8
 NPM ?= npm
 
@@ -25,7 +30,7 @@ default: help
 help:
 	@echo "Backend:  pyinstall serve pytest flake8"
 	@echo "Frontend: npminstall dev build vitest e2e eslint tsc"
-	@echo "Both:     install test lint checktws"
+	@echo "Both:     install run test lint checktws"
 
 # Install
 
@@ -34,13 +39,23 @@ install: pyinstall npminstall
 
 .PHONY: pyinstall
 pyinstall:
-	$(PYTHON) -m pip install -e "$(BACKEND)[dev]"
+	$(PYTHON) -m pip install -e "$(BACKEND)[$(PYEXTRAS)]"
 
 .PHONY: npminstall
 npminstall:
 	cd $(FRONTEND) && $(NPM) install
 
 # Run
+
+# Start the backend and the frontend together. Ctrl-C stops both, and so
+# does either one exiting.
+.PHONY: run
+run:
+	@trap 'kill 0' INT TERM EXIT; \
+	$(MAKE) --no-print-directory serve & backend=$$!; \
+	$(MAKE) --no-print-directory dev & frontend=$$!; \
+	while kill -0 $$backend 2>/dev/null && kill -0 $$frontend 2>/dev/null; \
+		do sleep 1; done
 
 .PHONY: serve
 serve:

@@ -6,6 +6,7 @@
       "Bash(make install:*)",
       "Bash(make pyinstall:*)",
       "Bash(make npminstall:*)",
+      "Bash(make run:*)",
       "Bash(make serve:*)",
       "Bash(make dev:*)",
       "Bash(make test:*)",

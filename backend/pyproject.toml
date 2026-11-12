@@ -9,7 +9,10 @@ description = "Backend for the Japanese podcast learner web app"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
+    "sudachidict-core>=20250129",
+    "sudachipy>=0.7",
     "uvicorn[standard]>=0.32",
+    "yt-dlp>=2025.1.15",
 ]
 
 [project.optional-dependencies]
@@ -17,6 +20,11 @@ dev = [
     "flake8>=7",
     "httpx>=0.27",
     "pytest>=8",
+]
+# Local speech-to-text on Apple Silicon. Needed only for videos that have no
+# Japanese subtitles.
+whisper = [
+    "mlx-whisper>=0.4",
 ]
 
 [tool.setuptools.packages.find]
