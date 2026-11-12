@@ -20,7 +20,7 @@ export default function SpeakButton({ text, label }: Props) {
       className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-accent-soft hover:text-accent"
       onClick={(event) => {
         event.stopPropagation()
-        speakJapanese(text)
+        void speakJapanese(text)
       }}
     >
       <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">

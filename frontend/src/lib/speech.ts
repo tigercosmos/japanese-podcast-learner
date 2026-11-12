@@ -56,19 +56,49 @@ export function canSpeak(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
 
+const VOICES_TIMEOUT_MS = 1000
+
+/**
+ * Resolve with the voices of the system. Chrome loads them in the
+ * background: the first `getVoices()` call returns an empty list and only
+ * starts the loading.
+ */
+function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  const synth = window.speechSynthesis
+  const voices = synth.getVoices()
+  if (voices.length > 0) {
+    return Promise.resolve(voices)
+  }
+  return new Promise((resolve) => {
+    const finish = () => {
+      window.clearTimeout(timer)
+      synth.removeEventListener('voiceschanged', finish)
+      resolve(synth.getVoices())
+    }
+    const timer = window.setTimeout(finish, VOICES_TIMEOUT_MS)
+    synth.addEventListener('voiceschanged', finish)
+  })
+}
+
+// Start loading the voices with the page. Without a voice chosen, the
+// browser reads with its default Japanese voice, which can be a male one.
+if (canSpeak()) {
+  void loadVoices()
+}
+
 /** Read Japanese text aloud with the text-to-speech of the system. */
-export function speakJapanese(text: string) {
+export async function speakJapanese(text: string) {
   if (!canSpeak() || !text.trim()) {
     return
   }
   const synth = window.speechSynthesis
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = 'ja-JP'
-  const voice = pickJapaneseVoice(synth.getVoices())
+  utterance.rate = 0.9
+  const voice = pickJapaneseVoice(await loadVoices())
   if (voice) {
     utterance.voice = voice
   }
-  utterance.rate = 0.9
   // A new request replaces the one in progress instead of queueing.
   synth.cancel()
   synth.speak(utterance)
