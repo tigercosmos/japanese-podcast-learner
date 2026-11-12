@@ -6,13 +6,17 @@ import type {
   VocabEntry,
 } from '../types/video'
 import LevelBadge from './LevelBadge'
+import SpeakButton from './SpeakButton'
 
 const MAX_OCCURRENCES = 5
 
 function ExampleLine({ example }: { example: Example }) {
   return (
     <div className="border-l-2 border-line pl-3">
-      <p lang="ja">{example.ja}</p>
+      <p className="flex items-start gap-1">
+        <span lang="ja">{example.ja}</span>
+        <SpeakButton text={example.ja} label="朗讀例句" />
+      </p>
       <p className="text-sm text-muted">{example.zh}</p>
     </div>
   )
@@ -106,6 +110,10 @@ export function VocabDetail({ entry, segments, onSeek }: VocabProps) {
         </span>
         <span lang="ja" className="text-accent">
           {entry.reading}
+        </span>
+        {/* The reading, not the kanji: a voice can misread a lone kanji. */}
+        <span className="self-center">
+          <SpeakButton text={entry.reading} label="朗讀單字" />
         </span>
         <span className="text-xs text-muted">{entry.pos}</span>
         <LevelBadge level={entry.level} />

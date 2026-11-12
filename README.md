@@ -21,6 +21,8 @@ You can then learn in two ways:
 - **先學習 (study first):** browse the vocabulary and grammar lists, filter by
   JLPT level, search, and read the transcript. Each entry links to the
   sentences in the video that use it.
+  A speaker button reads a word or an example sentence aloud with the
+  Japanese voice of your system (Web Speech API).
 - **邊看邊學 (learn while watching):** the video plays with Japanese and
   Chinese subtitles drawn over it. Click a word or a grammar tag in the
   subtitle and the video pauses and shows the explanation.
