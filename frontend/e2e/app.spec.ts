@@ -133,11 +133,38 @@ test('watch mode explains a word picked from a sentence', async ({ page }) => {
   await expect(detail.getByText('動詞て形＋しまう')).toBeVisible()
 })
 
+test('words and example sentences can be read aloud', async ({ page }) => {
+  await page.addInitScript(() => {
+    const spoken: { text: string; lang: string }[] = []
+    Object.assign(window, { spoken })
+    Object.defineProperty(window.speechSynthesis, 'speak', {
+      value: (utterance: SpeechSynthesisUtterance) =>
+        spoken.push({ text: utterance.text, lang: utterance.lang }),
+    })
+  })
+  await page.goto('/v/abcdefghijk/study')
+
+  const card = page.getByRole('listitem').filter({ hasText: '用眼睛看' })
+  await card.getByRole('button', { name: '朗讀單字' }).click()
+  await card.getByRole('button', { name: '朗讀例句' }).click()
+
+  await page.getByRole('button', { name: /^文法/ }).click()
+  await page.getByRole('button', { name: '朗讀例句' }).click()
+
+  expect(await page.evaluate('window.spoken')).toEqual([
+    { text: 'みる', lang: 'ja-JP' },
+    { text: '映画を見る。', lang: 'ja-JP' },
+    { text: '財布を忘れてしまった。', lang: 'ja-JP' },
+  ])
+})
+
 // A stand-in for the YouTube API that records where the app seeks.
 const FAKE_YOUTUBE_API = `
   window.seeks = []
   class Player {
     constructor(element, options) {
+      window.startAt = options.playerVars.start
+      this.events = options.events
       setTimeout(() => {
         options.events.onReady()
         window.playerReady = true
@@ -146,7 +173,7 @@ const FAKE_YOUTUBE_API = `
     getCurrentTime() { return window.seeks.at(-1) ?? 0 }
     getPlayerState() { return 2 }
     seekTo(seconds) { window.seeks.push(seconds) }
-    playVideo() {}
+    playVideo() { this.events.onStateChange({ data: 1 }) }
     pauseVideo() {}
     destroy() {}
   }
@@ -171,6 +198,24 @@ test('A, S and D move between sentences', async ({ page }) => {
   await expect(sentence.getByText('不小心看到貓了。')).toBeVisible()
 
   expect(await page.evaluate('window.seeks')).toEqual([3, 3, 0])
+})
+
+test('a reload resumes the video where it stopped', async ({ page }) => {
+  await page.route('https://www.youtube.com/iframe_api', (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: FAKE_YOUTUBE_API }),
+  )
+  await page.goto('/v/abcdefghijk/watch')
+  await page.waitForFunction('window.playerReady')
+  expect(await page.evaluate('window.startAt')).toBe(0)
+
+  await page.keyboard.press('d')
+  const sentence = page.locator('aside')
+  await expect(sentence.getByText('我喜歡貓。')).toBeVisible()
+  await page.reload()
+  await page.waitForFunction('window.playerReady')
+
+  expect(await page.evaluate('window.startAt')).toBe(3)
+  await expect(sentence.getByText('我喜歡貓。')).toBeVisible()
 })
 
 test('the video can be resized and keeps its size', async ({ page }) => {
@@ -204,6 +249,8 @@ test('a study sentence links to that moment in watch mode', async ({
 
   await page.getByRole('button', { name: /我喜歡貓。/ }).click()
 
-  await expect(page).toHaveURL(/\/v\/abcdefghijk\/watch\?t=3$/)
   await expect(page.locator('aside').getByText('我喜歡貓。')).toBeVisible()
+  // The request is used once, so that a reload resumes and does not jump
+  // back to this sentence.
+  await expect(page).toHaveURL(/\/v\/abcdefghijk\/watch$/)
 })

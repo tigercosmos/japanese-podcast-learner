@@ -13,6 +13,7 @@ import {
   loadVideoWidth,
   saveVideoWidth,
 } from '../lib/layout'
+import { loadPosition, savePosition } from '../lib/position'
 import { segmentIndexAt } from '../lib/subtitles'
 import type {
   GrammarEntry,
@@ -37,8 +38,22 @@ function isTyping(target: EventTarget | null) {
 export default function WatchPage() {
   const video = useOutletContext<ReadyVideo>()
   const { segments } = video
-  const [params] = useSearchParams()
-  const startAt = Number(params.get('t')) || 0
+  const [params, setParams] = useSearchParams()
+  // `?t=` is a one-time request to play from a sentence. Without it the
+  // video resumes where the viewer stopped.
+  const [requested] = useState(() => Number(params.get('t')) || 0)
+  const [startAt] = useState(
+    () => requested || loadPosition(video.id, video.duration),
+  )
+  const hasTimeParam = params.has('t')
+
+  useEffect(() => {
+    // Dropping the parameter makes a reload resume at the saved position
+    // and not jump back to the requested sentence.
+    if (hasTimeParam) {
+      setParams({}, { replace: true })
+    }
+  }, [hasTimeParam, setParams])
 
   const vocabById = useMemo(
     () => new Map(video.vocabulary.map((entry) => [entry.id, entry])),
@@ -73,14 +88,16 @@ export default function WatchPage() {
       const index = segmentIndexAt(segments, time)
       setCurrentIndex(index)
       setSpeaking(index >= 0 && time < segments[index].end)
+      savePosition(video.id, time)
     },
-    [segments],
+    [segments, video.id],
   )
   const playerRef = useRef<HTMLDivElement>(null)
   const { playing, error, seek, pause, toggle } = useYouTubePlayer(
     playerRef,
     video.id,
     startAt,
+    requested > 0,
     handleTime,
   )
 

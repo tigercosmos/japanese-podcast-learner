@@ -7,12 +7,14 @@ const POLL_MS = 100
 
 /**
  * Embed a YouTube player in the element that `containerRef` points to.
- * `onTime` is called with the playback position about ten times a second.
+ * `onTime` is called with the playback position about ten times a second,
+ * from the moment the video first plays.
  */
 export function useYouTubePlayer(
   containerRef: RefObject<HTMLDivElement | null>,
   videoId: string,
   startAt: number,
+  autoplay: boolean,
   onTime: (seconds: number) => void,
 ) {
   const playerRef = useRef<YouTubePlayer | null>(null)
@@ -31,6 +33,9 @@ export function useYouTubePlayer(
     }
     let cancelled = false
     let timer: number | undefined
+    // Before the first play the player reports 0, not `startAt`. Passing
+    // that on would move the app back to the start of the video.
+    let started = false
     let player: YouTubePlayer | null = null
     // The API replaces its target element with an iframe. React must not
     // own that element, so it is created by hand.
@@ -48,7 +53,7 @@ export function useYouTubePlayer(
           height: '100%',
           playerVars: {
             start: Math.floor(startAt),
-            autoplay: startAt > 0 ? 1 : 0,
+            autoplay: autoplay ? 1 : 0,
             playsinline: 1,
             rel: 0,
             hl: 'zh-TW',
@@ -59,12 +64,14 @@ export function useYouTubePlayer(
                 return
               }
               playerRef.current = created
-              timer = window.setInterval(
-                () => onTimeRef.current(created.getCurrentTime()),
-                POLL_MS,
-              )
+              timer = window.setInterval(() => {
+                if (started) {
+                  onTimeRef.current(created.getCurrentTime())
+                }
+              }, POLL_MS)
             },
             onStateChange: (event) => {
+              started ||= event.data === PLAYER_STATE_PLAYING
               setPlaying(event.data === PLAYER_STATE_PLAYING)
               // The viewer's YouTube settings can turn captions on. They
               // would sit under the subtitles that this app draws. The
@@ -89,11 +96,17 @@ export function useYouTubePlayer(
       player?.destroy()
       container.replaceChildren()
     }
-  }, [containerRef, videoId, startAt])
+  }, [containerRef, videoId, startAt, autoplay])
 
   const seek = useCallback((seconds: number) => {
-    playerRef.current?.seekTo(seconds, true)
-    playerRef.current?.playVideo()
+    const player = playerRef.current
+    if (!player) {
+      return
+    }
+    player.seekTo(seconds, true)
+    player.playVideo()
+    // Report at once, so the app follows a seek made before the first play.
+    onTimeRef.current(seconds)
   }, [])
 
   const pause = useCallback(() => playerRef.current?.pauseVideo(), [])
