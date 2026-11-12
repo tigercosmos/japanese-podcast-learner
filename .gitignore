@@ -1,5 +1,6 @@
 # OS / editors
 .DS_Store
+Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -9,6 +10,7 @@
 # Agent tooling (per-user files)
 CLAUDE.local.md
 .claude/worktrees/
+.cursor/worktrees/
 /worktrees/
 
 # Environment
@@ -21,6 +23,9 @@ CLAUDE.local.md
 logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Frontend
 node_modules
@@ -31,6 +36,9 @@ dist-ssr
 /frontend/blob-report/
 /frontend/.playwright/
 **/.last-run.json
+*.tsbuildinfo
+.eslintcache
+/frontend/coverage/
 
 # Backend
 __pycache__/
@@ -38,7 +46,13 @@ __pycache__/
 *.egg-info/
 build/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 .venv/
+venv/
 
 # Local runtime data (downloaded audio, transcripts, databases)
 /data/
