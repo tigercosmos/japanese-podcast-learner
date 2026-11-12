@@ -90,7 +90,7 @@ export default function VideoLayout() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4">
+    <div className="mx-auto max-w-[160rem] px-4 py-4">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line pb-3">
         <Link to="/" className="shrink-0 text-sm text-muted hover:text-accent">
           ← 我的影片

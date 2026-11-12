@@ -133,6 +133,70 @@ test('watch mode explains a word picked from a sentence', async ({ page }) => {
   await expect(detail.getByText('動詞て形＋しまう')).toBeVisible()
 })
 
+// A stand-in for the YouTube API that records where the app seeks.
+const FAKE_YOUTUBE_API = `
+  window.seeks = []
+  class Player {
+    constructor(element, options) {
+      setTimeout(() => {
+        options.events.onReady()
+        window.playerReady = true
+      })
+    }
+    getCurrentTime() { return window.seeks.at(-1) ?? 0 }
+    getPlayerState() { return 2 }
+    seekTo(seconds) { window.seeks.push(seconds) }
+    playVideo() {}
+    pauseVideo() {}
+    destroy() {}
+  }
+  window.YT = { Player }
+  window.onYouTubeIframeAPIReady()
+`
+
+test('A, S and D move between sentences', async ({ page }) => {
+  await page.route('https://www.youtube.com/iframe_api', (route) =>
+    route.fulfill({ contentType: 'text/javascript', body: FAKE_YOUTUBE_API }),
+  )
+  await page.goto('/v/abcdefghijk/watch')
+  // Until the player is ready there is nothing to seek.
+  await page.waitForFunction('window.playerReady')
+  const sentence = page.locator('aside')
+  await expect(sentence.getByText('不小心看到貓了。')).toBeVisible()
+
+  await page.keyboard.press('d')
+  await expect(sentence.getByText('我喜歡貓。')).toBeVisible()
+  await page.keyboard.press('s')
+  await page.keyboard.press('a')
+  await expect(sentence.getByText('不小心看到貓了。')).toBeVisible()
+
+  expect(await page.evaluate('window.seeks')).toEqual([3, 3, 0])
+})
+
+test('the video can be resized and keeps its size', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 800 })
+  await page.goto('/v/abcdefghijk/watch')
+  const video = page.getByTestId('video-column')
+  const handle = page.getByRole('separator')
+  const width = async () => (await video.boundingBox())!.width
+
+  const handleBox = (await handle.boundingBox())!
+  await page.mouse.move(handleBox.x + 4, handleBox.y + 50)
+  await page.mouse.down()
+  await page.mouse.move(600, handleBox.y + 50, { steps: 5 })
+  await page.mouse.up()
+
+  const resized = await width()
+  expect(resized).toBeGreaterThan(550)
+  expect(resized).toBeLessThan(620)
+
+  await page.reload()
+  expect(await width()).toBe(resized)
+
+  await handle.dblclick()
+  expect(await width()).toBeGreaterThan(resized + 100)
+})
+
 test('a study sentence links to that moment in watch mode', async ({
   page,
 }) => {

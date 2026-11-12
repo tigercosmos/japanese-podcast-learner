@@ -67,7 +67,7 @@ export default function StudyPage() {
   }
 
   return (
-    <div className="py-4">
+    <div className="mx-auto max-w-7xl py-4">
       <div className="flex flex-wrap items-center gap-2">
         {tabs.map(({ value, label }) => (
           <button

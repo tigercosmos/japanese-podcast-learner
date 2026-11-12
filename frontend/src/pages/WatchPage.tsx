@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, PointerEvent } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { GrammarDetail, VocabDetail } from '../components/Details'
 import JaText from '../components/JaText'
@@ -7,6 +8,11 @@ import Toggle from '../components/Toggle'
 import TranscriptList from '../components/TranscriptList'
 import { useStoredFlag } from '../hooks/useStoredFlag'
 import { useYouTubePlayer } from '../hooks/useYouTubePlayer'
+import {
+  clampVideoWidth,
+  loadVideoWidth,
+  saveVideoWidth,
+} from '../lib/layout'
 import { segmentIndexAt } from '../lib/subtitles'
 import type {
   GrammarEntry,
@@ -56,7 +62,11 @@ export default function WatchPage() {
   const [showZh, setShowZh] = useStoredFlag('subtitle-zh', true)
   const [showFurigana, setShowFurigana] = useStoredFlag('furigana', true)
   const [atTop, setAtTop] = useStoredFlag('subtitle-top', false)
+  // null keeps the default split: the video takes the room that the side
+  // panel leaves.
+  const [videoWidth, setVideoWidth] = useState(loadVideoWidth)
   const stageRef = useRef<HTMLDivElement>(null)
+  const layoutRef = useRef<HTMLDivElement>(null)
 
   const handleTime = useCallback(
     (time: number) => {
@@ -116,18 +126,24 @@ export default function WatchPage() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (isTyping(event.target) || event.metaKey || event.ctrlKey) {
+      if (
+        isTyping(event.target) ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey
+      ) {
         return
       }
-      if (event.key === ' ') {
+      const key = event.key.toLowerCase()
+      if (key === ' ') {
         toggle()
-      } else if (event.key === 'ArrowLeft') {
+      } else if (key === 'a' || key === 'arrowleft') {
         step(-1)
-      } else if (event.key === 'ArrowRight') {
+      } else if (key === 'd' || key === 'arrowright') {
         step(1)
-      } else if (event.key === 'r') {
+      } else if (key === 's' || key === 'r') {
         step(0)
-      } else if (event.key === 'Escape') {
+      } else if (key === 'escape') {
         setSelection(null)
         return
       } else {
@@ -145,6 +161,20 @@ export default function WatchPage() {
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
+
+  function resizeVideo(event: PointerEvent<HTMLDivElement>) {
+    const layout = layoutRef.current
+    if (!layout || !event.currentTarget.hasPointerCapture(event.pointerId)) {
+      return
+    }
+    const box = layout.getBoundingClientRect()
+    setVideoWidth(clampVideoWidth(event.clientX - box.left, box.width))
+  }
+
+  function resetVideoWidth() {
+    setVideoWidth(null)
+    saveVideoWidth(null)
+  }
 
   function toggleFullscreen() {
     if (document.fullscreenElement) {
@@ -186,8 +216,19 @@ export default function WatchPage() {
   )
 
   return (
-    <div className="grid items-start gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
-      <div>
+    <div
+      ref={layoutRef}
+      className="items-start gap-4 py-4 lg:flex lg:flex-wrap"
+    >
+      <div
+        data-testid="video-column"
+        className={
+          videoWidth === null
+            ? 'lg:min-w-0 lg:flex-1'
+            : 'lg:w-(--video-width) lg:max-w-full lg:shrink-0'
+        }
+        style={{ '--video-width': `${videoWidth}px` } as CSSProperties}
+      >
         <div
           ref={stageRef}
           className="@container relative aspect-video overflow-hidden rounded-xl bg-black"
@@ -233,7 +274,7 @@ export default function WatchPage() {
           <button
             type="button"
             className={CONTROL_CLASS}
-            title="快捷鍵：←"
+            title="快捷鍵：A 或 ←"
             onClick={() => step(-1)}
           >
             ⏮ 上一句
@@ -241,7 +282,7 @@ export default function WatchPage() {
           <button
             type="button"
             className={CONTROL_CLASS}
-            title="快捷鍵：R"
+            title="快捷鍵：S 或 R"
             onClick={() => step(0)}
           >
             ↻ 重聽這句
@@ -249,7 +290,7 @@ export default function WatchPage() {
           <button
             type="button"
             className={CONTROL_CLASS}
-            title="快捷鍵：→"
+            title="快捷鍵：D 或 →"
             onClick={() => step(1)}
           >
             下一句 ⏭
@@ -263,14 +304,34 @@ export default function WatchPage() {
           </button>
         </div>
         <p className="mt-2 text-xs text-muted">
-          點字幕裡的單字或文法標籤，影片會暫停並顯示解說。快捷鍵：空白鍵
-          播放／暫停，← → 上一句／下一句，R 重聽，Esc 關閉解說。
+          點字幕裡的單字或文法標籤，影片會暫停並顯示解說。
+          拖曳影片右邊的直條可以調整影片大小。快捷鍵：空白鍵
+          播放／暫停，A 上一句，S 重聽這句，D 下一句（← R →
+          也可以），Esc 關閉解說。
           {video.transcript_source === 'whisper' &&
             ' 這部影片的日文字幕由本機語音辨識產生，可能有錯字。'}
         </p>
       </div>
 
-      <aside className="space-y-3">
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="調整影片大小"
+        title="拖曳調整影片大小，按兩下恢復預設"
+        className="hidden w-2 shrink-0 cursor-col-resize touch-none self-stretch rounded-full bg-line transition-colors hover:bg-accent active:bg-accent lg:block"
+        onPointerDown={(event) =>
+          event.currentTarget.setPointerCapture(event.pointerId)
+        }
+        onPointerMove={resizeVideo}
+        onPointerUp={() => saveVideoWidth(videoWidth)}
+        onDoubleClick={resetVideoWidth}
+      />
+
+      <aside
+        className={`mt-4 space-y-3 lg:mt-0 ${
+          videoWidth === null ? 'lg:w-96 lg:shrink-0' : 'lg:min-w-80 lg:flex-1'
+        }`}
+      >
         {detail && !fullscreen && (
           <div className="rounded-xl border-2 border-accent/40 bg-card p-4">
             {detail}

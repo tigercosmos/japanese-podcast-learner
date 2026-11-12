@@ -59,16 +59,19 @@ export function useYouTubePlayer(
                 return
               }
               playerRef.current = created
-              // The viewer's YouTube settings can turn captions on. They
-              // would sit under the subtitles that this app draws.
-              created.unloadModule?.('captions')
               timer = window.setInterval(
                 () => onTimeRef.current(created.getCurrentTime()),
                 POLL_MS,
               )
             },
-            onStateChange: (event) =>
-              setPlaying(event.data === PLAYER_STATE_PLAYING),
+            onStateChange: (event) => {
+              setPlaying(event.data === PLAYER_STATE_PLAYING)
+              // The viewer's YouTube settings can turn captions on. They
+              // would sit under the subtitles that this app draws. The
+              // captions module loads late, so it is removed on each
+              // state change and not only once.
+              created.unloadModule?.('captions')
+            },
           },
         })
         player = created
