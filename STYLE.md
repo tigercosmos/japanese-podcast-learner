@@ -103,5 +103,7 @@ cannot see. The default is no comment.
 - Separate the subject from the body with one blank line. Wrap the body at 72
   characters. The body explains why the change happened.
 - Backtick-quote code tokens: paths, identifiers, commands, and flags.
+- Do not credit an AI tool. No `Co-Authored-By:` trailer for an AI agent and
+  no "Generated with" line, in commits or in pull requests.
 
 <!-- vim: set ft=markdown ff=unix fenc=utf8 et sw=2 ts=2 sts=2 tw=79: -->

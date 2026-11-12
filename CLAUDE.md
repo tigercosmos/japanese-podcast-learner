@@ -151,6 +151,8 @@ frontend/
 - Pushing directly to `main` is allowed. When the user asks to commit or
   push, do it on the current branch, `main` included. Create a branch or a
   pull request only when the user asks for one.
+- Never add AI attribution: no `Co-Authored-By:` trailer for an AI agent in a
+  commit message, and no "Generated with" line in a pull request body.
 - Before pushing, run `make lint` and `make test`, and invoke
   `python-style-review` for changed backend files. Report the actual results;
   never declare the branch clean without running the checks.
