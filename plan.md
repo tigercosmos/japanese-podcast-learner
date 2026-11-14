@@ -23,16 +23,34 @@ Browser (React SPA)  --/api-->  Python backend (FastAPI)  -->  data/ (JSON)
 - All backend routes live under `/api`. In development Vite proxies `/api`
   to `http://127.0.0.1:8000`.
 - The frontend embeds the YouTube player and draws its own subtitles over
-  it. The video itself is never downloaded.
+  it. The video is downloaded only when the viewer asks for it, for a video
+  that YouTube does not play on other sites. The page then plays the local
+  file in a `<video>` element, with the same subtitles and controls.
 
 ## Processing Pipeline
 
-`POST /api/videos` queues a video. One worker thread processes the queue
-(`pipeline.py`) and records the stage and the progress in `meta.json`. The
-frontend polls `GET /api/videos/{id}`.
+`POST /api/videos` checks the video and queues it. One worker thread
+processes the queue (`pipeline.py`) and records the stage and the progress
+in `meta.json`. The frontend polls `GET /api/videos/{id}`.
 
-1. **Metadata.** yt-dlp reads the title, channel, duration, and the list of
-   subtitle tracks.
+1. **Metadata and embed check.** This step runs inside the request, so a
+   problem shows in the form at once. yt-dlp reads the title, channel,
+   duration, and the list of subtitle tracks. The backend also reads the
+   embed page of the video (`/embed/<id>` with a `Referer`) and its
+   `previewPlayabilityStatus`. The `playable_in_embed` field of yt-dlp is
+   not enough: it stays true for a video that the owner blocks on other
+   sites (player error 150). A blocked video is refused with the code
+   `not_embeddable`, and the form offers to download it
+   (`{"download": true}`).
+   - **Video download** (only on request). yt-dlp saves `video.mp4`, at
+     most 720p, H.264 and AAC when the video has them. It needs ffmpeg.
+     When the video also needs Whisper, the file is the audio source, so
+     nothing is downloaded twice.
+   - `POST /api/videos/{id}/download` does the same for a video that is
+     already analyzed. It runs on its own thread and reports through
+     `video_download`, `video_progress`, and `video_error` in `meta.json`.
+     The watch page offers it when the YouTube player reports an error.
+   - `GET /api/videos/{id}/file` serves the file with HTTP Range support.
 2. **Transcript.**
    - The video has uploaded Japanese subtitles: download that track.
    - Otherwise: download the audio and transcribe it locally with
@@ -41,10 +59,16 @@ frontend polls `GET /api/videos/{id}`.
    - YouTube auto-generated captions are not used. They have no punctuation
      and no sentence boundaries, so Whisper gives better lines to study.
    - The cleaned transcript is saved, so a retry never transcribes twice.
-3. **Tokens.** SudachiPy splits every line. Each token gets furigana when it
+3. **Proofreading** (Whisper transcripts only, `proofread.py`). Whisper
+   picks wrong homophones and misspells names. Claude reads the transcript
+   in chunks and returns only the lines that have a clear recognition
+   error. Spoken style is kept. A correction that halves or doubles the
+   length of a line is a rewrite, so it is ignored. The timing and the
+   number of lines never change. Uploaded subtitles are not proofread.
+4. **Tokens.** SudachiPy splits every line. Each token gets furigana when it
    has kanji. Content words (nouns, verbs, adjectives, adverbs, and so on)
    get a link to a vocabulary entry: the dictionary form is the entry id.
-4. **Analysis.** The transcript is cut into chunks of about 1200 characters.
+5. **Analysis.** The transcript is cut into chunks of about 1200 characters.
    Each chunk is one `claude -p` call with a JSON Schema
    (`--json-schema`), and several calls run in parallel. A call returns:
    - the Traditional Chinese translation of every line,
@@ -55,7 +79,7 @@ frontend polls `GET /api/videos/{id}`.
    vocabulary complete and makes every entry link back to the subtitles.
    Grammar patterns from different chunks are merged by pattern text.
    Finished chunks are cached on disk, so a retry resumes.
-5. **Store.** `content.json` holds the segments, vocabulary, and grammar.
+6. **Store.** `content.json` holds the segments, vocabulary, and grammar.
 
 `claude -p` runs with no tools, no MCP servers, and no user or project
 settings. `ANTHROPIC_API_KEY` is removed from its environment by default so
@@ -65,9 +89,11 @@ that it uses the Claude Code login.
 
 ```
 data/videos/<video id>/
-  meta.json       id, url, title, status, stage, progress, error, counts
+  meta.json       id, url, title, status, stage, progress, error, counts,
+                  local_video, video_download
   content.json    segments, vocabulary, grammar
-  work/           transcript.json, chunks/ (cached Claude results)
+  video.mp4       the downloaded video, only when the viewer asked for it
+  work/           transcript.json, proofread/ and chunks/ (cached Claude results)
 ```
 
 - Segment: `id`, `start`, `end`, `ja`, `zh`, `tokens`, `grammar` (ids).

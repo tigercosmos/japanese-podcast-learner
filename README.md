@@ -10,11 +10,20 @@ Paste the link of a Japanese YouTube video. The backend then:
 
 1. Gets the Japanese transcript. It uses the uploaded Japanese subtitles when
    the video has them. Otherwise it downloads the audio and transcribes it on
-   your Mac with Whisper (MLX).
+   your Mac with Whisper (MLX). Claude then corrects the clear recognition
+   errors of the Whisper transcript.
 2. Translates every line to Traditional Chinese with Claude Code
    (`claude -p`).
 3. Lists the vocabulary (reading, meaning, usage, example) and the grammar
    patterns (explanation, how to connect, examples), also with Claude Code.
+
+Some videos cannot be played on other sites, because the owner turned
+embedding off. The app tells you so when you paste the link, before it does
+any work, and offers a button to download the video to your Mac. It then
+plays the local file with the same subtitles. The watch page offers the same
+button when the YouTube player reports an error. A downloaded file stays in
+`data/videos/<id>/video.mp4` until you delete the video in the app. Download
+only videos that you are allowed to keep a copy of.
 
 You can then learn in two ways:
 
@@ -47,8 +56,9 @@ See `plan.md` for the design.
 - GNU Make
 - [Claude Code](https://claude.com/claude-code), logged in, with `claude` on
   your `PATH`
-- For videos without Japanese subtitles: a Mac with Apple Silicon, and
-  `ffmpeg` (`brew install ffmpeg`)
+- `ffmpeg` (`brew install ffmpeg`), for videos without Japanese subtitles
+  and for downloading a video
+- For videos without Japanese subtitles: a Mac with Apple Silicon
 
 ### Installation
 

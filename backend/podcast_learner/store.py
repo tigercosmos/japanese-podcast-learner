@@ -27,6 +27,10 @@ class Store:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
+    def video_path(self, video_id):
+        """Return where the downloaded video of a video is kept."""
+        return self.video_dir(video_id) / "video.mp4"
+
     def list_meta(self):
         if not self._root.is_dir():
             return []

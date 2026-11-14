@@ -1,6 +1,7 @@
 """FastAPI application. All routes live under ``/api``."""
 
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import responses
 import pydantic
 
 from podcast_learner import config
@@ -11,6 +12,12 @@ from podcast_learner import store as store_module
 
 class SubmitRequest(pydantic.BaseModel):
     url: str
+    download: bool = False
+
+
+def _refusal(exc):
+    return responses.JSONResponse(
+        status_code=400, content={"detail": str(exc), "code": exc.code})
 
 
 def create_app(pipeline=None):
@@ -47,9 +54,9 @@ def create_app(pipeline=None):
     @router.post("/videos")
     def submit_video(request: SubmitRequest):
         try:
-            return pipeline.submit(request.url)
+            return pipeline.submit(request.url, download=request.download)
         except errors.PipelineError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return _refusal(exc)
 
     @router.get("/videos/{video_id}")
     def get_video(video_id: str):
@@ -59,6 +66,22 @@ def create_app(pipeline=None):
             if content is not None:
                 meta.update(content)
         return meta
+
+    @router.post("/videos/{video_id}/download")
+    def download_video(video_id: str):
+        require_meta(video_id)
+        try:
+            return pipeline.download_video(video_id)
+        except errors.PipelineError as exc:
+            return _refusal(exc)
+
+    @router.get("/videos/{video_id}/file")
+    def video_file(video_id: str):
+        require_meta(video_id)
+        path = store.video_path(video_id)
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="沒有下載的影片檔。")
+        return responses.FileResponse(path, media_type="video/mp4")
 
     @router.delete("/videos/{video_id}", status_code=204)
     def delete_video(video_id: str):

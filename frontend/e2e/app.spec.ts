@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
@@ -253,4 +254,112 @@ test('a study sentence links to that moment in watch mode', async ({
   // The request is used once, so that a reload resumes and does not jump
   // back to this sentence.
   await expect(page).toHaveURL(/\/v\/abcdefghijk\/watch$/)
+})
+
+test('a video that cannot be embedded can be downloaded instead', async ({
+  page,
+}) => {
+  const requests: { url: string; download: boolean }[] = []
+  await page.route('**/api/videos', (route) => {
+    if (route.request().method() !== 'POST') {
+      return route.fulfill({ json: [] })
+    }
+    const body = route.request().postDataJSON()
+    requests.push(body)
+    if (body.download) {
+      return route.fulfill({ json: META })
+    }
+    return route.fulfill({
+      status: 400,
+      json: { detail: '這部影片不允許在其他網站播放。', code: 'not_embeddable' },
+    })
+  })
+  await page.goto('/')
+
+  await page.getByLabel('YouTube 影片連結').fill(META.url)
+  await page.getByRole('button', { name: '開始分析' }).click()
+  await expect(page.getByRole('alert')).toHaveText(
+    '這部影片不允許在其他網站播放。',
+  )
+  await page.getByRole('button', { name: '下載影片到本機' }).click()
+
+  await expect(page).toHaveURL(/\/v\/abcdefghijk/)
+  expect(requests).toEqual([
+    { url: META.url, download: false },
+    { url: META.url, download: true },
+  ])
+})
+
+// Bundled Chromium has no H.264 decoder, so the stand-in file is WebM.
+async function mockVideoFile(page: Page) {
+  await page.route('**/api/videos/abcdefghijk/file', (route) =>
+    route.fulfill({
+      contentType: 'video/webm',
+      path: fileURLToPath(new URL('fixtures/tiny.webm', import.meta.url)),
+    }),
+  )
+}
+
+test('a downloaded video plays from the local file', async ({ page }) => {
+  await page.route('**/api/videos/abcdefghijk', (route) =>
+    route.fulfill({ json: { ...VIDEO, local_video: true } }),
+  )
+  await mockVideoFile(page)
+  await page.goto('/v/abcdefghijk/watch')
+  const player = page.getByTestId('player').locator('video')
+  await expect(player).toHaveAttribute('src', '/api/videos/abcdefghijk/file')
+  await expect(page.getByTestId('player').locator('iframe')).toHaveCount(0)
+  await expect
+    .poll(() => player.evaluate((v: HTMLVideoElement) => v.readyState))
+    .toBeGreaterThan(0)
+
+  await page.keyboard.press('d')
+
+  // The shortcuts and the subtitles follow the file as they follow YouTube.
+  await expect(page.locator('aside').getByText('我喜歡貓。')).toBeVisible()
+  await expect(page.getByTestId('subtitle')).toContainText('我喜歡貓。')
+  expect(
+    await player.evaluate((v: HTMLVideoElement) => v.currentTime),
+  ).toBeGreaterThanOrEqual(3)
+})
+
+const BLOCKED_YOUTUBE_API = `
+  class Player {
+    constructor(element, options) {
+      setTimeout(() => options.events.onError({ data: 150 }))
+    }
+    destroy() {}
+  }
+  window.YT = { Player }
+  window.onYouTubeIframeAPIReady()
+`
+
+test('a blocked player offers the download and then plays the file', async ({
+  page,
+}) => {
+  let downloaded = false
+  await page.route('https://www.youtube.com/iframe_api', (route) =>
+    route.fulfill({
+      contentType: 'text/javascript',
+      body: BLOCKED_YOUTUBE_API,
+    }),
+  )
+  await page.route('**/api/videos/abcdefghijk', (route) =>
+    route.fulfill({ json: { ...VIDEO, local_video: downloaded } }),
+  )
+  await page.route('**/api/videos/abcdefghijk/download', (route) => {
+    downloaded = true
+    return route.fulfill({
+      json: { ...META, video_download: 'running', video_progress: 0 },
+    })
+  })
+  await mockVideoFile(page)
+  await page.goto('/v/abcdefghijk/watch')
+
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('不允許在 YouTube 以外的網站播放')
+  await alert.getByRole('button', { name: '下載影片到本機' }).click()
+
+  await expect(page.getByTestId('player').locator('video')).toBeVisible()
+  await expect(alert).toBeHidden()
 })

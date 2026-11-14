@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useParams } from 'react-router-dom'
 import { getVideo, submitVideo } from '../lib/api'
-import { isActive, stageLabel } from '../lib/stages'
+import { hasProgress, isActive, stageLabel } from '../lib/stages'
 import type { ReadyVideo, Video } from '../types/video'
 
 const POLL_MS = 2000
@@ -16,7 +16,7 @@ function isReady(video: Video): video is ReadyVideo {
 }
 
 function Progress({ video }: { video: Video }) {
-  const known = video.stage === 'analyze'
+  const known = hasProgress(video)
   return (
     <div className="mx-auto mt-16 max-w-md text-center">
       <p className="text-lg font-semibold">正在準備這部影片</p>

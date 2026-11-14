@@ -5,24 +5,16 @@ The tokenizer decides which words need an entry, so every entry links back
 to the tokens in the subtitles by its dictionary form.
 """
 
-import concurrent.futures
-import hashlib
-import json
-import logging
-import pathlib
 import re
 
+from podcast_learner import chunks as chunks_module
 from podcast_learner import errors
 from podcast_learner import japanese
-from podcast_learner import store
 
 LEVELS = ["N5", "N4", "N3", "N2", "N1"]
 MAX_CHUNK_CHARS = 1200
 MAX_CHUNK_SEGMENTS = 40
 CONTEXT_SEGMENTS = 3
-ATTEMPTS = 3
-
-_LOG = logging.getLogger(__name__)
 
 SYSTEM = """\
 你是專業的日語老師，學生是台灣的繁體中文母語者，正在用日語 Podcast 學日語。
@@ -146,57 +138,22 @@ def analyze(title, segments, runner, cache_dir, on_progress=None,
     """
     tokens = [japanese.tokenize(segment["text"]) for segment in segments]
     chunks = build_chunks(title, segments, tokens)
-    results = _run_chunks(
-        chunks, runner, pathlib.Path(cache_dir), on_progress, workers)
+    try:
+        results = chunks_module.run(
+            chunks, runner, cache_dir, SYSTEM, SCHEMA,
+            check=_check_translations, on_progress=on_progress,
+            workers=workers)
+    except Exception as exc:
+        raise errors.PipelineError(f"翻譯與分析失敗：{exc}") from exc
     return _assemble(segments, tokens, chunks, results)
 
 
-def _run_chunks(chunks, runner, cache_dir, on_progress, workers):
-    results = [None] * len(chunks)
-    done = 0
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
-    try:
-        futures = {
-            executor.submit(_run_chunk, chunk, runner, cache_dir): index
-            for index, chunk in enumerate(chunks)
-        }
-        for future in concurrent.futures.as_completed(futures):
-            results[futures[future]] = future.result()
-            done += 1
-            if on_progress is not None:
-                on_progress(done, len(chunks))
-    except Exception as exc:
-        raise errors.PipelineError(f"翻譯與分析失敗：{exc}") from exc
-    finally:
-        executor.shutdown(wait=False, cancel_futures=True)
-    return results
-
-
-def _run_chunk(chunk, runner, cache_dir):
-    prompt = json.dumps(chunk, ensure_ascii=False)
-    digest = hashlib.sha1((SYSTEM + prompt).encode("utf-8")).hexdigest()
-    cache_path = cache_dir / f"chunk-{digest}.json"
-    cached = store.read_json(cache_path)
-    if cached is not None:
-        return cached
-
+def _check_translations(chunk, result):
     expected = {segment["id"] for segment in chunk["segments"]}
-    last_error = None
-    for attempt in range(ATTEMPTS):
-        try:
-            result = runner(prompt, SYSTEM, SCHEMA)
-            translated = {item["id"] for item in result["translations"]}
-            missing = expected - translated
-            if missing:
-                raise ValueError(
-                    f"{len(missing)} segments were not translated")
-        except Exception as exc:
-            _LOG.warning("chunk attempt %d failed: %s", attempt + 1, exc)
-            last_error = exc
-            continue
-        store.write_json(cache_path, result)
-        return result
-    raise last_error
+    translated = {item["id"] for item in result["translations"]}
+    missing = expected - translated
+    if missing:
+        raise ValueError(f"{len(missing)} segments were not translated")
 
 
 def _assemble(segments, tokens, chunks, results):

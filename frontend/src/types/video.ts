@@ -75,6 +75,12 @@ export interface VideoMeta {
   error: string
   transcript_source?: 'youtube' | 'whisper'
   counts?: { segments: number; vocabulary: number; grammar: number }
+  /** A copy of the video is on this computer and is the one to play. */
+  local_video?: boolean
+  /** A download asked for after the analysis: its state and progress. */
+  video_download?: '' | 'running' | 'failed'
+  video_progress?: number
+  video_error?: string
 }
 
 export interface Video extends VideoMeta {

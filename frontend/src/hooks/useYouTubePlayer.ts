@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { loadYouTubeApi, PLAYER_STATE_PLAYING } from '../lib/youtube'
+import {
+  loadYouTubeApi,
+  PLAYER_STATE_PLAYING,
+  playerErrorMessage,
+} from '../lib/youtube'
 import type { YouTubePlayer } from '../lib/youtube'
 
 const POLL_MS = 100
 
 /**
  * Embed a YouTube player in the element that `containerRef` points to.
- * `onTime` is called with the playback position about ten times a second,
+ * A null `videoId` embeds nothing. `onTime` is called with the playback position about ten times a second,
  * from the moment the video first plays.
  */
 export function useYouTubePlayer(
   containerRef: RefObject<HTMLDivElement | null>,
-  videoId: string,
+  videoId: string | null,
   startAt: number,
   autoplay: boolean,
   onTime: (seconds: number) => void,
@@ -28,7 +32,7 @@ export function useYouTubePlayer(
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container) {
+    if (!container || !videoId) {
       return
     }
     let cancelled = false
@@ -79,6 +83,7 @@ export function useYouTubePlayer(
               // state change and not only once.
               created.unloadModule?.('captions')
             },
+            onError: (event) => setError(playerErrorMessage(event.data)),
           },
         })
         player = created

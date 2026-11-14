@@ -6,8 +6,11 @@ import JaText from '../components/JaText'
 import SubtitleOverlay from '../components/SubtitleOverlay'
 import Toggle from '../components/Toggle'
 import TranscriptList from '../components/TranscriptList'
+import { useLocalPlayer } from '../hooks/useLocalPlayer'
 import { useStoredFlag } from '../hooks/useStoredFlag'
+import { useVideoDownload } from '../hooks/useVideoDownload'
 import { useYouTubePlayer } from '../hooks/useYouTubePlayer'
+import { videoFileUrl } from '../lib/api'
 import {
   clampVideoWidth,
   loadVideoWidth,
@@ -93,13 +96,24 @@ export default function WatchPage() {
     [segments, video.id],
   )
   const playerRef = useRef<HTMLDivElement>(null)
-  const { playing, error, seek, pause, toggle } = useYouTubePlayer(
+  const download = useVideoDownload(video)
+  const youtubePlayer = useYouTubePlayer(
     playerRef,
-    video.id,
+    download.local ? null : video.id,
     startAt,
     requested > 0,
     handleTime,
   )
+  const localPlayer = useLocalPlayer(
+    playerRef,
+    download.local ? videoFileUrl(video.id) : null,
+    startAt,
+    requested > 0,
+    handleTime,
+  )
+  const { playing, error, seek, pause, toggle } = download.local
+    ? localPlayer
+    : youtubePlayer
 
   const current: Segment | undefined = segments[Math.max(currentIndex, 0)]
   const currentGrammar = useMemo(
@@ -252,12 +266,34 @@ export default function WatchPage() {
         >
           <div
             ref={playerRef}
+            data-testid="player"
             className="absolute inset-0 [&>iframe]:h-full [&>iframe]:w-full"
           />
           {error && (
-            <p className="absolute inset-0 flex items-center justify-center text-white">
-              {error}
-            </p>
+            <div
+              role="alert"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/90 p-4 text-center text-white"
+            >
+              <p>{error}</p>
+              {!download.local && download.running && (
+                <p className="text-sm">
+                  正在下載影片到本機…（
+                  {Math.round(download.progress * 100)}%）
+                </p>
+              )}
+              {!download.local && !download.running && (
+                <button
+                  type="button"
+                  className="rounded-full bg-accent px-4 py-2 font-semibold"
+                  onClick={download.start}
+                >
+                  下載影片到本機
+                </button>
+              )}
+              {download.error && (
+                <p className="text-sm text-white/80">{download.error}</p>
+              )}
+            </div>
           )}
           {current && speaking && (
             <SubtitleOverlay
@@ -325,6 +361,7 @@ export default function WatchPage() {
           拖曳影片右邊的直條可以調整影片大小。快捷鍵：空白鍵
           播放／暫停，A 上一句，S 重聽這句，D 下一句（← R →
           也可以），Esc 關閉解說。
+          {download.local && ' 這部影片播放的是下載到本機的檔案。'}
           {video.transcript_source === 'whisper' &&
             ' 這部影片的日文字幕由本機語音辨識產生，可能有錯字。'}
         </p>

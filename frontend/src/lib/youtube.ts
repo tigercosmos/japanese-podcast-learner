@@ -18,6 +18,7 @@ interface PlayerOptions {
   events?: {
     onReady?: () => void
     onStateChange?: (event: { data: number }) => void
+    onError?: (event: { data: number }) => void
   }
 }
 
@@ -33,6 +34,17 @@ declare global {
 }
 
 export const PLAYER_STATE_PLAYING = 1
+
+/** Describe an `onError` code of the player, in Chinese. */
+export function playerErrorMessage(code: number): string {
+  if (code === 101 || code === 150) {
+    return '這部影片不允許在 YouTube 以外的網站播放。'
+  }
+  if (code === 100) {
+    return '這部影片已經被移除或設為私人影片。'
+  }
+  return `YouTube 無法播放這部影片（錯誤 ${code}）。`
+}
 
 let apiPromise: Promise<YouTubeApi> | null = null
 

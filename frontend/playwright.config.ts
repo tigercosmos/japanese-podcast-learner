@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Use a dedicated port for e2e tests so it doesn't conflict with `npm run dev` (port 5173).
-const E2E_PORT = 5174;
+// Set E2E_PORT when another project already listens on the default.
+const E2E_PORT = Number(process.env.E2E_PORT) || 5174;
 
 export default defineConfig({
   testDir: "./e2e",
