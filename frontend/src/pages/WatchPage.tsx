@@ -28,6 +28,9 @@ import type {
 
 type PanelTab = 'sentence' | 'transcript'
 
+// An iPhone cannot put anything but a video element in fullscreen.
+const CAN_FULLSCREEN = document.fullscreenEnabled
+
 const CONTROL_CLASS =
   'rounded-full border border-line bg-card px-3 py-1 text-sm hover:border-accent hover:text-accent'
 
@@ -224,7 +227,7 @@ export default function WatchPage() {
       <button
         type="button"
         aria-label="關閉"
-        className="absolute top-0 right-0 text-muted hover:text-accent"
+        className="absolute top-0 right-0 p-1 text-muted hover:text-accent"
         onClick={() => setSelection(null)}
       >
         ✕
@@ -254,15 +257,19 @@ export default function WatchPage() {
       <div
         data-testid="video-column"
         className={
-          videoWidth === null
-            ? 'lg:min-w-0 lg:flex-1'
-            : 'lg:w-(--video-width) lg:max-w-full lg:shrink-0'
+          // Below lg the column dissolves, so that the video can stay
+          // in view while the rest of the page scrolls under it.
+          `max-lg:contents ${
+            videoWidth === null
+              ? 'lg:min-w-0 lg:flex-1'
+              : 'lg:w-(--video-width) lg:max-w-full lg:shrink-0'
+          }`
         }
         style={{ '--video-width': `${videoWidth}px` } as CSSProperties}
       >
         <div
           ref={stageRef}
-          className="@container relative aspect-video overflow-hidden rounded-xl bg-black"
+          className="@container relative aspect-video overflow-hidden rounded-xl bg-black max-lg:z-10 max-lg:mx-auto max-lg:portrait:sticky max-lg:portrait:top-[env(safe-area-inset-top)] max-lg:landscape:w-[min(100%,calc((100dvh-1rem)*16/9))]"
         >
           <div
             ref={playerRef}
@@ -323,7 +330,7 @@ export default function WatchPage() {
           />
           <Toggle label="中文字幕" checked={showZh} onChange={setShowZh} />
           <Toggle label="字幕置頂" checked={atTop} onChange={setAtTop} />
-          <span className="mx-1 h-5 w-px bg-line" />
+          <span className="mx-1 hidden h-5 w-px bg-line sm:block" />
           <button
             type="button"
             className={CONTROL_CLASS}
@@ -331,6 +338,14 @@ export default function WatchPage() {
             onClick={() => step(-1)}
           >
             ⏮ 上一句
+          </button>
+          <button
+            type="button"
+            className={CONTROL_CLASS}
+            title="快捷鍵：空白鍵"
+            onClick={toggle}
+          >
+            {playing ? '⏸ 暫停' : '▶ 播放'}
           </button>
           <button
             type="button"
@@ -348,19 +363,23 @@ export default function WatchPage() {
           >
             下一句 ⏭
           </button>
-          <button
-            type="button"
-            className={`${CONTROL_CLASS} ml-auto`}
-            onClick={toggleFullscreen}
-          >
-            ⛶ 全螢幕
-          </button>
+          {CAN_FULLSCREEN && (
+            <button
+              type="button"
+              className={`${CONTROL_CLASS} ml-auto`}
+              onClick={toggleFullscreen}
+            >
+              ⛶ 全螢幕
+            </button>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted">
           點字幕裡的單字或文法標籤，影片會暫停並顯示解說。
-          拖曳影片右邊的直條可以調整影片大小。快捷鍵：空白鍵
-          播放／暫停，A 上一句，S 重聽這句，D 下一句（← R →
-          也可以），Esc 關閉解說。
+          <span className="hidden lg:inline">
+            拖曳影片右邊的直條可以調整影片大小。快捷鍵：空白鍵
+            播放／暫停，A 上一句，S 重聽這句，D 下一句（← R →
+            也可以），Esc 關閉解說。
+          </span>
           {download.local && ' 這部影片播放的是下載到本機的檔案。'}
           {video.transcript_source === 'whisper' &&
             ' 這部影片的日文字幕由本機語音辨識產生，可能有錯字。'}
@@ -498,7 +517,7 @@ export default function WatchPage() {
               selectedWord={selectedVocab?.id}
               onSeek={seekTo}
               onWord={selectWord}
-              className="max-h-[60vh] overflow-y-auto p-2"
+              className="max-h-[50dvh] overflow-y-auto p-2 lg:max-h-[60vh]"
             />
           )}
         </div>

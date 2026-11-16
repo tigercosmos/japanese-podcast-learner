@@ -90,16 +90,20 @@ export default function VideoLayout() {
   }
 
   return (
-    <div className="mx-auto max-w-[160rem] px-4 py-4">
+    <div className="mx-auto max-w-[160rem] px-4 py-3 sm:py-4">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line pb-3">
         <Link to="/" className="shrink-0 text-sm text-muted hover:text-accent">
           ← 我的影片
         </Link>
-        <h1 lang="ja" className="min-w-0 flex-1 truncate font-semibold">
+        {/* On a phone the title takes its own row under the navigation. */}
+        <h1
+          lang="ja"
+          className="order-last min-w-0 basis-full truncate font-semibold sm:order-none sm:flex-1 sm:basis-0"
+        >
           {video?.title}
         </h1>
         {video && isReady(video) && (
-          <nav className="flex gap-1 rounded-full border border-line bg-card p-1">
+          <nav className="ml-auto flex gap-1 rounded-full border border-line bg-card p-1 sm:ml-0">
             <NavLink to="study" className={TAB_CLASS}>
               先學習
             </NavLink>

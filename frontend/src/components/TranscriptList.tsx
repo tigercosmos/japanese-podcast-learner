@@ -56,7 +56,7 @@ function TranscriptList({
           >
             {formatTime(segment.start)}
           </button>
-          <div>
+          <div className="min-w-0">
             <p className={showFurigana ? 'leading-[2]' : ''}>
               <JaText
                 tokens={segment.tokens}

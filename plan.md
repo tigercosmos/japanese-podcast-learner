@@ -22,6 +22,11 @@ Browser (React SPA)  --/api-->  Python backend (FastAPI)  -->  data/ (JSON)
 
 - All backend routes live under `/api`. In development Vite proxies `/api`
   to `http://127.0.0.1:8000`.
+- Both development servers listen on `0.0.0.0` (`HOST` in the Makefile), so
+  a phone on the same network can use the app. Every page fits a phone
+  screen. Below the `lg` breakpoint the video of watch mode stays at the
+  top while the page scrolls, and an explanation in the study transcript
+  opens as a sheet over the bottom edge.
 - The frontend embeds the YouTube player and draws its own subtitles over
   it. The video is downloaded only when the viewer asks for it, for a video
   that YouTube does not play on other sites. The page then plays the local

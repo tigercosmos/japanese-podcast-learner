@@ -24,6 +24,11 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  /* A long URL or e-mail address in a sentence must not widen the page. */
+  overflow-wrap: break-word;
+  /* viewport-fit=cover draws under the notch of a phone held sideways. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* Japanese text must use Japanese glyph shapes, not the Chinese ones. */

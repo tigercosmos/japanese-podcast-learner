@@ -321,6 +321,12 @@ test('a downloaded video plays from the local file', async ({ page }) => {
   expect(
     await player.evaluate((v: HTMLVideoElement) => v.currentTime),
   ).toBeGreaterThanOrEqual(3)
+
+  await page.getByRole('button', { name: '暫停' }).click()
+  await expect(page.getByRole('button', { name: '▶ 播放' })).toBeVisible()
+  expect(await player.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  await page.getByRole('button', { name: '▶ 播放' }).click()
+  await expect(page.getByRole('button', { name: '暫停' })).toBeVisible()
 })
 
 const BLOCKED_YOUTUBE_API = `
@@ -362,4 +368,83 @@ test('a blocked player offers the download and then plays the file', async ({
 
   await expect(page.getByTestId('player').locator('video')).toBeVisible()
   await expect(alert).toBeHidden()
+})
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 664 }, hasTouch: true })
+
+  test('no page is wider than the screen', async ({ page }) => {
+    // An e-mail address has no place to break a line.
+    const address = 'averyveryverylongname@averyveryverylongdomain.example'
+    const segments = [
+      {
+        ...VIDEO.segments[0],
+        ja: `${address}まで`,
+        zh: address,
+        tokens: [{ s: address }, { s: 'まで' }, VIDEO.segments[0].tokens[0]],
+      },
+      VIDEO.segments[1],
+    ]
+    await page.route('**/api/videos/abcdefghijk', (route) =>
+      route.fulfill({ json: { ...VIDEO, segments } }),
+    )
+    const overflow = () =>
+      page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      )
+
+    await page.goto('/')
+    await expect(page.getByRole('link', { name: '先學習' })).toBeVisible()
+    expect(await overflow()).toBe(0)
+
+    await page.goto('/v/abcdefghijk/study')
+    for (const tab of [/^單字/, /^文法/, '逐字稿']) {
+      await page.getByRole('button', { name: tab, exact: true }).click()
+      expect(await overflow()).toBe(0)
+    }
+
+    await page.goto('/v/abcdefghijk/watch')
+    await expect(page.getByTestId('player')).toBeVisible()
+    expect(await overflow()).toBe(0)
+    await page.getByRole('button', { name: '逐字稿', exact: true }).click()
+    expect(await overflow()).toBe(0)
+  })
+
+  test('a word in the study transcript opens a sheet', async ({ page }) => {
+    await page.goto('/v/abcdefghijk/study')
+    await page.getByRole('button', { name: '逐字稿', exact: true }).click()
+
+    const sheet = page.locator('aside')
+    await expect(sheet).toBeHidden()
+
+    await page.locator('[data-word="猫"]').first().click()
+    await expect(sheet.getByText('指家貓，也可以泛指貓科動物。')).toBeVisible()
+    await expect(sheet).toBeInViewport()
+
+    // Another word must not inherit how far the sheet was scrolled.
+    const body = sheet.locator('div').first()
+    await page.setViewportSize({ width: 390, height: 300 })
+    await body.evaluate((element) => element.scrollTo(0, 500))
+    expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    await page.locator('[data-word="見る"]').first().click()
+    await expect(sheet.getByText('用眼睛看的最基本說法。')).toBeVisible()
+    expect(
+      await sheet.locator('div').first().evaluate((element) => element.scrollTop),
+    ).toBe(0)
+
+    await sheet.getByRole('button', { name: '關閉' }).click()
+    await expect(sheet).toBeHidden()
+  })
+
+  test('the video stays in view while the page scrolls', async ({ page }) => {
+    await page.goto('/v/abcdefghijk/watch')
+
+    await page.locator('aside [data-word="見る"]').first().click()
+    await page.getByTestId('detail').scrollIntoViewIfNeeded()
+    await page.mouse.wheel(0, 400)
+
+    await expect(page.getByTestId('player')).toBeInViewport({ ratio: 0.9 })
+  })
 })

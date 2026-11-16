@@ -18,7 +18,9 @@ NPM ?= npm
 RUNENV := PYTHONPATH=$(BACKEND)
 
 BACKEND_APP ?= podcast_learner.app:app
-BACKEND_HOST ?= 127.0.0.1
+# 0.0.0.0 lets a phone on the same network open the app.
+HOST ?= 0.0.0.0
+BACKEND_HOST ?= $(HOST)
 BACKEND_PORT ?= 8000
 
 PYTEST_OPTS ?=
@@ -64,7 +66,7 @@ serve:
 
 .PHONY: dev
 dev:
-	cd $(FRONTEND) && $(NPM) run dev
+	cd $(FRONTEND) && $(NPM) run dev -- --host $(HOST)
 
 .PHONY: build
 build:

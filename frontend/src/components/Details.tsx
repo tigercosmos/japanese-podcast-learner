@@ -14,7 +14,9 @@ function ExampleLine({ example }: { example: Example }) {
   return (
     <div className="border-l-2 border-line pl-3">
       <p className="flex items-start gap-1">
-        <span lang="ja">{example.ja}</span>
+        <span lang="ja" className="min-w-0">
+          {example.ja}
+        </span>
         <SpeakButton text={example.ja} label="朗讀例句" />
       </p>
       <p className="text-sm text-muted">{example.zh}</p>
@@ -49,7 +51,7 @@ function Occurrence({ segment, mark = '', onSeek }: OccurrenceProps) {
       <span className="mt-0.5 shrink-0 font-mono text-xs text-accent">
         ▶ {formatTime(segment.start)}
       </span>
-      <span>
+      <span className="min-w-0">
         <span lang="ja" className="block">
           {parts.before}
           {parts.match && (

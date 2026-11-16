@@ -24,10 +24,10 @@ function VideoCard({
 }) {
   const title = video.title || video.url
   return (
-    <li className="flex gap-4 rounded-xl border border-line bg-card p-3">
+    <li className="flex gap-3 rounded-xl border border-line bg-card p-3">
       <Link
         to={`/v/${video.id}`}
-        className="relative block aspect-video w-40 shrink-0 overflow-hidden rounded-lg bg-line sm:w-48"
+        className="relative block aspect-video w-32 shrink-0 self-start overflow-hidden rounded-lg bg-line sm:w-48"
       >
         {video.thumbnail && (
           <img
@@ -181,7 +181,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
       <header>
         <p className="text-sm tracking-[0.3em] text-accent">にほんご</p>
         <h1 className="mt-1 text-3xl font-bold">日語 Podcast 學習</h1>
@@ -207,7 +207,7 @@ export default function HomePage() {
         <button
           type="submit"
           disabled={submitting || !url.trim()}
-          className="shrink-0 rounded-xl bg-accent px-5 py-3 font-semibold text-white transition-opacity disabled:opacity-40"
+          className="shrink-0 rounded-xl bg-accent px-4 py-3 font-semibold sm:px-5 text-white transition-opacity disabled:opacity-40"
         >
           {submitting ? '送出中…' : '開始分析'}
         </button>

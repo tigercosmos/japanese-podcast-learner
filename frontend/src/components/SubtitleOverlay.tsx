@@ -29,17 +29,17 @@ export default function SubtitleOverlay({
   }
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 flex justify-center px-3 ${
+      className={`pointer-events-none absolute inset-x-0 flex justify-center px-1.5 @md:px-3 ${
         atTop ? 'top-[12%]' : 'bottom-[14%]'
       }`}
     >
       <div
         data-testid="subtitle"
-        className="pointer-events-auto max-w-[94%] rounded-lg bg-black/75 px-4 py-2 text-center text-white shadow-lg"
+        className="pointer-events-auto max-w-[98%] rounded-lg bg-black/75 px-2 py-1 text-center @md:max-w-[94%] @md:px-4 @md:py-2 text-white shadow-lg"
       >
         {showJa && (
           <p
-            className={`text-[clamp(1rem,2.6cqw,2.2rem)] font-medium ${
+            className={`text-[clamp(0.9rem,2.6cqw,2.2rem)] font-medium ${
               showFurigana ? 'leading-[2]' : 'leading-normal'
             }`}
           >
@@ -54,7 +54,7 @@ export default function SubtitleOverlay({
           </p>
         )}
         {showZh && segment.zh && (
-          <p className="text-[clamp(0.9rem,2.1cqw,1.7rem)] text-amber-100">
+          <p className="text-[clamp(0.8rem,2.1cqw,1.7rem)] text-amber-100">
             {segment.zh}
           </p>
         )}

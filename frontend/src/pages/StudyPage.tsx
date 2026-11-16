@@ -12,6 +12,8 @@ import type { Level, ReadyVideo, Segment } from '../types/video'
 type Tab = 'vocabulary' | 'grammar' | 'transcript'
 
 const PAGE_SIZE = 60
+// iOS zooms the page when a field with text under 16px takes focus.
+const FIELD_TEXT = 'text-base lg:text-sm'
 
 const SORTS: { value: VocabSort; label: string }[] = [
   { value: 'order', label: '依出現順序' },
@@ -99,7 +101,7 @@ export default function StudyPage() {
             }}
             placeholder="搜尋日文、讀音或中文"
             aria-label="搜尋"
-            className="w-56 rounded-full border border-line bg-card px-4 py-1.5 text-sm outline-none focus:border-accent"
+            className={`w-full rounded-full border border-line bg-card px-4 py-1.5 outline-none focus:border-accent sm:w-56 ${FIELD_TEXT}`}
           />
           {LEVELS.map((level) => (
             <Toggle
@@ -114,7 +116,7 @@ export default function StudyPage() {
               value={sort}
               onChange={(event) => setSort(event.target.value as VocabSort)}
               aria-label="排序"
-              className="ml-auto rounded-full border border-line bg-card px-3 py-1.5 text-sm"
+              className={`ml-auto rounded-full border border-line bg-card px-3 py-1.5 ${FIELD_TEXT}`}
             >
               {SORTS.map(({ value, label }) => (
                 <option key={value} value={value}>
@@ -132,7 +134,7 @@ export default function StudyPage() {
             {vocabulary.slice(0, limit).map((entry) => (
               <li
                 key={entry.id}
-                className="rounded-xl border border-line bg-card p-4"
+                className="min-w-0 rounded-xl border border-line bg-card p-4"
               >
                 <VocabDetail
                   entry={entry}
@@ -161,7 +163,7 @@ export default function StudyPage() {
             {grammar.map((entry) => (
               <li
                 key={entry.id}
-                className="rounded-xl border border-line bg-card p-4"
+                className="min-w-0 rounded-xl border border-line bg-card p-4"
               >
                 <GrammarDetail
                   entry={entry}
@@ -176,9 +178,13 @@ export default function StudyPage() {
       )}
 
       {tab === 'transcript' && (
-        <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div
+          className={`mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem] ${
+            lookedUp ? 'max-lg:pb-[55dvh]' : ''
+          }`}
+        >
           <div className="rounded-xl border border-line bg-card p-2">
-            <div className="flex items-center gap-3 px-2 py-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1">
               <Toggle
                 label="假名"
                 checked={showFurigana}
@@ -197,15 +203,39 @@ export default function StudyPage() {
               onWord={setLookup}
             />
           </div>
-          <aside className="sticky top-4 rounded-xl border border-line bg-card p-4">
+          {/* Below lg the explanation is a sheet over the bottom edge. */}
+          <aside
+            className={`relative rounded-xl border border-line bg-card lg:sticky lg:top-4 ${
+              lookedUp
+                ? 'max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-20 max-lg:flex max-lg:max-h-[55dvh] max-lg:flex-col max-lg:rounded-b-none max-lg:pr-[env(safe-area-inset-right)] max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pl-[env(safe-area-inset-left)] max-lg:shadow-[0_-8px_24px_rgb(0_0_0/0.18)]'
+                : 'max-lg:hidden'
+            }`}
+          >
             {lookedUp ? (
-              <VocabDetail
-                entry={lookedUp}
-                segments={video.segments}
-                onSeek={watchFrom}
-              />
+              <>
+                {/* Outside the scrolling part, so it never scrolls away. */}
+                <button
+                  type="button"
+                  aria-label="關閉"
+                  className="absolute top-2 right-[calc(0.5rem+env(safe-area-inset-right))] z-10 rounded-full bg-card p-2 leading-none text-muted hover:text-accent"
+                  onClick={() => setLookup(null)}
+                >
+                  ✕
+                </button>
+                {/* The key starts each word at the top of the sheet. */}
+                <div
+                  key={lookedUp.id}
+                  className="min-h-0 overflow-y-auto p-4 pr-10"
+                >
+                  <VocabDetail
+                    entry={lookedUp}
+                    segments={video.segments}
+                    onSeek={watchFrom}
+                  />
+                </div>
+              </>
             ) : (
-              <p className="text-sm text-muted">點選逐字稿裡的單字。</p>
+              <p className="p-4 text-sm text-muted">點選逐字稿裡的單字。</p>
             )}
           </aside>
         </div>

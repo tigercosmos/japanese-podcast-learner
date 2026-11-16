@@ -98,6 +98,19 @@ make serve   # Backend at http://127.0.0.1:8000 (auto-reload)
 make dev     # Frontend at http://127.0.0.1:5173/
 ```
 
+Both servers listen on `0.0.0.0`, so a phone on the same network can open
+`http://<address of the computer>:5173/`. The pages fit a phone screen. There
+is no login: anyone on the network can use the app. To listen on this
+computer only:
+
+```bash
+make run HOST=127.0.0.1
+```
+
+The frontend dev server answers only to an IP address, to `localhost`, and to
+the hostnames in `server.allowedHosts` in `frontend/vite.config.ts`. Add the
+hostname of the computer there to open the app by name.
+
 The frontend dev server forwards requests under `/api` to the backend. To use
 a backend at a different address, set `BACKEND_URL`:
 
